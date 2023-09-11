@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MFAType {
+  GOOGLE_AUTHENTICATOR
+  SMS_AUTHENTICATION
+}
+
+model User {
+  user_id                     Int          @id @default(autoincrement())
+  username                    String
+  password                    String
+  email                       String?      @unique
+  phonenumber                 String?      @unique
+  is_mfa_enabled              Boolean      @default(false)
+  mfa_type                    MFAType?
+  google_authenticator_secret String?
+  createdAt                   DateTime     @default(now())
+  updatedAt                   DateTime     @updatedAt
+  User_Roles                  User_Roles[]
+}
+
+model Roles {
+  role_id          Int                @id @default(autoincrement())
+  role_name        String             @unique
+  description      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  User_Roles       User_Roles[]
+  Role_Permissions Role_Permissions[]
+}
+
+model User_Roles {
+  user_role_id Int      @default(autoincrement())
+  user_id      Int
+  role_id      Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User  @relation(fields: [user_id], references: [user_id])
+  role Roles @relation(fields: [role_id], references: [role_id])
+
+  @@id([user_id, role_id])
+}
+
+model Permission {
+  permission_id    Int                @id @default(autoincrement())
+  permission_name  String             @unique
+  description      String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  Role_Permissions Role_Permissions[]
+}
+
+model Role_Permissions {
+  role_permission_id Int      @default(autoincrement())
+  role_id            Int
+  permission_id      Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  role       Roles      @relation(fields: [role_id], references: [role_id])
+  permission Permission @relation(fields: [permission_id], references: [permission_id])
+
+  @@id([role_id, permission_id])
+}
