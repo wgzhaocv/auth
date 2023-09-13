@@ -2,69 +2,153 @@ import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// const userData: Prisma.UserCreateInput[] = [
-//   {
-//     name: 'Alice',
-//     email: 'alice@prisma.io',
-//     posts: {
-//       create: [
-//         {
-//           title: 'Join the Prisma Slack',
-//           content: 'https://slack.prisma.io',
-//           published: true,
-//         },
-//       ],
-//     },
-//   },
-//   {
-//     name: 'Nilu',
-//     email: 'nilu@prisma.io',
-//     posts: {
-//       create: [
-//         {
-//           title: 'Follow Prisma on Twitter',
-//           content: 'https://www.twitter.com/prisma',
-//           published: true,
-//         },
-//       ],
-//     },
-//   },
-//   {
-//     name: 'Mahmoud',
-//     email: 'mahmoud@prisma.io',
-//     posts: {
-//       create: [
-//         {
-//           title: 'Ask a question about Prisma on GitHub',
-//           content: 'https://www.github.com/prisma/prisma/discussions',
-//           published: true,
-//         },
-//         {
-//           title: 'Prisma on YouTube',
-//           content: 'https://pris.ly/youtube',
-//         },
-//       ],
-//     },
-//   },
-// ]
+const permissionData: Prisma.PermissionCreateInput[] = [
+  {
+    permission_id: 1,
+    permission_name: "lookup",
+    description: "lookup files",
+  },
+  {
+    permission_id: 2,
+    permission_name: "edit",
+    description: "edit files",
+  },
+  {
+    permission_id: 3,
+    permission_name: "approve",
+    description: "approve files",
+  },
+  {
+    permission_id: 4,
+    permission_name: "manage",
+    description: "manage users",
+  },
+];
 
-async function main() {
+const roleData: Prisma.RolesCreateInput[] = [
+  {
+    role_id: 1,
+    role_name: "juniorDev",
+    description: "junior developer",
+  },
+  {
+    role_id: 2,
+    role_name: "seniorDev",
+    description: "senior developer",
+  },
+  {
+    role_id: 3,
+    role_name: "manager",
+    description: "manager",
+  },
+  {
+    role_id: 4,
+    role_name: "admin",
+    description: "admin",
+  },
+];
+
+const RolePermissionData: Prisma.Role_PermissionsCreateInput[] = [
+  {
+    role: {
+      connect: { role_id: 1 },
+    },
+    permission: {
+      connect: { permission_id: 1 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 2 },
+    },
+    permission: {
+      connect: { permission_id: 1 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 2 },
+    },
+    permission: {
+      connect: { permission_id: 2 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 3 },
+    },
+    permission: {
+      connect: { permission_id: 1 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 3 },
+    },
+    permission: {
+      connect: { permission_id: 2 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 3 },
+    },
+    permission: {
+      connect: { permission_id: 3 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 4 },
+    },
+    permission: {
+      connect: { permission_id: 1 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 4 },
+    },
+    permission: {
+      connect: { permission_id: 2 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 4 },
+    },
+    permission: {
+      connect: { permission_id: 3 },
+    },
+  },
+  {
+    role: {
+      connect: { role_id: 4 },
+    },
+    permission: {
+      connect: { permission_id: 4 },
+    },
+  },
+];
+
+async function seedingData() {
   console.log(`Start seeding ...`);
-  // for (const u of userData) {
-  //   const user = await prisma.user.create({
-  //     data: u,
-  //   })
-  //   console.log(`Created user with id: ${user.id}`)
-  // }
+  await prisma.permission.createMany({
+    data: permissionData,
+    skipDuplicates: true,
+  });
+  await prisma.roles.createMany({
+    data: roleData,
+    skipDuplicates: true,
+  });
+
+  for (let role_Permissions of RolePermissionData) {
+    await prisma.role_Permissions.create({
+      data: role_Permissions,
+    }); // create empty role_Permissions
+  }
+
   console.log(`Seeding finished.`);
 }
 
-main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+export default seedingData;

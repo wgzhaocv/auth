@@ -27,7 +27,8 @@ model User {
 }
 
 model Roles {
-  role_id          Int                @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
+  role_id          Int                @unique
   role_name        String             @unique
   description      String?
   createdAt        DateTime           @default(now())
@@ -50,7 +51,8 @@ model User_Roles {
 }
 
 model Permission {
-  permission_id    Int                @id @default(autoincrement())
+  id               Int                @id @default(autoincrement())
+  permission_id    Int                @unique
   permission_name  String             @unique
   description      String?
   createdAt        DateTime           @default(now())
