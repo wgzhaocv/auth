@@ -4,11 +4,10 @@ import path from "path";
 import jwt from "jsonwebtoken";
 import session from "express-session";
 import crypto from "crypto";
-const prisma = new PrismaClient();
-// import axios from "axios";
 import bcrypt from "bcrypt";
 const app = express();
-import seedingData from "../prisma/seed";
+// import seedingData from "../prisma/seed";
+import { queryUserById, queryUserOnly, createUserWithRole } from "./db";
 
 declare module "express-session" {
   export interface SessionData {
@@ -25,14 +24,13 @@ app.use(
   session({
     secret:
       process.env.SESSION_SECRET || crypto.randomBytes(20).toString("hex"),
-    resave: false,
+    resave: true,
     saveUninitialized: true,
     cookie: { secure: false, maxAge: 5 * 60 * 1000 }, // 在生产环境中应设置为 true，以确保cookie只通过HTTPS发送
   })
 );
 
 const publicPath = path.resolve(".", "./public");
-console.log(path.join(publicPath, "login", "index.html"));
 
 app.use(express.static(publicPath));
 
@@ -49,11 +47,26 @@ app.use("/", (req, res, next) => {
   next();
 });
 
-app.get("/", (req, res) => {
-  res.render("index", { message: "Hello, world!" });
+app.get("/", async (req, res) => {
+  const user = req.session?.user;
+
+  if (user) {
+    const allUserInfo = await queryUserById(user.user_id);
+    console.log(allUserInfo);
+    return res.render("home", {
+      user: user.username,
+      role: "",
+      permission: "",
+    });
+  }
+
+  return res.redirect("/login");
 });
 
 app.get("/login", (req, res) => {
+  if (req.session?.user) {
+    return res.redirect("/");
+  }
   res.sendFile(path.join(publicPath, "signin", "index.html"));
 });
 
@@ -61,27 +74,30 @@ app.post("/login", async (req, res) => {
   const { email, phonenumber, password } = req.body;
 
   try {
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { phonenumber }],
-      },
-    });
+    const user = await queryUserOnly({ email, phonenumber });
     const result = await bcrypt.compare(password, user?.password || "");
     if (result && user) {
-      
       req.session.user = user;
-          if (req.session.redirectTo) {
-      return res.redirect(req.session.redirectTo);
-    } else {
-      return res.redirect("/");
+      if (req.session.redirectTo) {
+        const dest = req.session.redirectTo;
+        delete req.session.redirectTo;
+        return res.redirect(dest);
+      } else {
+        return res.redirect("/");
+      }
     }
-
-    }
-  } catch (error) {}
-
-
+    return res.json({ message: "wrong password" });
+  } catch (error) {
+    console.log(error);
+    return res.json({ message: "some error occured" });
+  }
+});
 
 app.get("/signup", (req, res) => {
+  if (req.session?.user) {
+    return res.redirect("/");
+  }
+
   res.sendFile(path.join(publicPath, "signup", "register.html"));
 });
 
@@ -90,14 +106,13 @@ app.post("/signup", async (req, res) => {
   console.log(req.body);
 
   try {
-    const user = await prisma.user.create({
-      data: {
-        username: "user_ichigo",
-        password: await bcrypt.hash(password, 10),
-        email,
-        phonenumber,
-      },
+    const user = await createUserWithRole({
+      password,
+      role_id: 1,
+      email,
+      phonenumber,
     });
+
     req.session.user = user;
     if (req.session?.user) {
       if (req.session.redirectTo) {
@@ -112,7 +127,6 @@ app.post("/signup", async (req, res) => {
   } catch (error) {
     console.log(error);
   }
-
   res.json({ body: req.body });
 });
 
