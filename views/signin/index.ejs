@@ -3,21 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="./styles.css" />
-    <script src="./script.js"></script>
+    <link rel="stylesheet" href="/signin/styles.css" />
+    <script src="/signin/script.js"></script>
     <title>Login Page</title>
   </head>
 
   <body>
     <div class="login-container">
       <h1>Login Page</h1>
+      <div class="form-group flexSwitch">
+        <label class="switch">
+          <input type="checkbox" id="toggle-switch" />
+          <span class="slider round"></span>
+        </label>
+        <span class="label-text" id="label-text">login by password</span>
+      </div>
       <div class="form-group">
-        <label for="username">Username</label>
+        <label for="username">mail or phone number</label>
         <input
           type="text"
-          id="username"
-          name="username"
-          placeholder="Enter your username"
+          id="mailorphone"
+          name="mailorphone"
+          placeholder="Enter your mail or phone number"
         />
       </div>
       <div class="form-group">
@@ -29,16 +36,19 @@
           placeholder="Enter your password"
         />
       </div>
+      <div class="form-group">
+        <button class="btn w-full" id="sendcode">send auth code</button>
+      </div>
       <div>
         <input type="checkbox" id="remember-me" name="remember-me" />
         <label for="remember-me">Remember me</label>
       </div>
-      <div>
+      <div class="form-group">
         <a href="#">Forgot password?</a>
       </div>
       <div class="button-group">
-        <button type="submit" class="btn" id="login-button">Login</button>
         <a href="/signup" class="btn" id="register-button">Register</a>
+        <button class="btn" id="login-button">Login</button>
       </div>
     </div>
   </body>

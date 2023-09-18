@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
   }
 
-  registerButton.addEventListener("click", () => {
+  registerButton.addEventListener("click", async () => {
     const mailorphone = document.getElementById("mailorphone").value;
     const password = document.getElementById("password").value;
 
@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       return;
     }
 
-    fetch("/signup", {
+    const data = await fetch("/signup", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -40,5 +40,17 @@ document.addEventListener("DOMContentLoaded", (event) => {
         password: password,
       }),
     });
+
+    if (data.success) {
+      sessionStorage.setItem("username", data.success.data.user);
+      if (data.success.redirectTo) {
+        window.location.href = data.success.redirectTo;
+      } else {
+        window.location.href = "/";
+      }
+    } else if (data.error) {
+      console.log(data.error);
+      alert(data.error.message);
+    }
   });
 });

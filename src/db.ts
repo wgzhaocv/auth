@@ -1,67 +1,63 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
-
 const prisma = new PrismaClient();
 
-enum QueryType {
-  BY_ID = 0,
-  BY_EMAIL = 1,
-  BY_PHONE_NUMBER = 2,
-}
-
-const queryUser = (type: QueryType) => {
-  return async (param: string | number) => {
-    let where:
-      | { user_id: number }
-      | { email: string }
-      | { phonenumber: string };
-
-    if (typeof param === "string") {
-      if (type === 1) {
-        where = { email: param };
-      } else {
-        where = {
-          phonenumber: param,
-        };
-      }
-    } else {
-      where = {
-        user_id: param,
-      };
-    }
-
-    const user = await prisma.user.findUnique({
-      where,
-      select: {
-        User_Roles: {
-          select: {
-            role: {
-              select: {
-                role_id: true,
-                role_name: true,
-                Role_Permissions: {
-                  select: {
-                    permission: {
-                      select: {
-                        permission_id: true,
-                        permission_name: true,
-                      },
-                    },
-                  },
+const selectUserObj = {
+  User_Roles: {
+    include: {
+      role: {
+        select: {
+          role_id: true,
+          role_name: true,
+          Role_Permissions: {
+            include: {
+              permission: {
+                select: {
+                  permission_id: true,
+                  permission_name: true,
                 },
               },
             },
           },
         },
       },
-    });
-    return user;
-  };
+    },
+  },
 };
 
-const queryUserById = queryUser(QueryType.BY_ID);
-const queryUserByEmail = queryUser(QueryType.BY_EMAIL);
-const queryUserByPhoneNumber = queryUser(QueryType.BY_PHONE_NUMBER);
+const queryUserById = async (id: number) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      user_id: id,
+    },
+    include: selectUserObj,
+  });
+  return user;
+};
+const queryUserByEmail = async (email: string) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email_phonenumber: {
+        email,
+        phonenumber: "",
+      },
+    },
+    include: selectUserObj,
+  });
+  return user;
+};
+const queryUserByPhoneNumber = async (phonenumber: string) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email_phonenumber: {
+        email: "",
+        phonenumber,
+      },
+    },
+    include: selectUserObj,
+  });
+  return user;
+};
 
 type EmailOrPhoneNumber = {
   email?: string;
@@ -71,7 +67,8 @@ type EmailOrPhoneNumber = {
 const queryUserOnly = async (param: EmailOrPhoneNumber) => {
   const user = await prisma.user.findFirst({
     where: {
-      OR: [{ email: param.email }, { phonenumber: param.phonenumber }],
+      email: param.email ?? "",
+      phonenumber: param.phonenumber ?? "",
     },
   });
   return user;
@@ -111,10 +108,52 @@ const createUserWithRole = async (param: UserWithRole) => {
   return user;
 };
 
+const saveAuthCode = async (user_id: number, code: string) => {
+  try {
+    const authInfo = await prisma.verification.create({
+      data: {
+        user_id,
+        code,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 5),
+      },
+    });
+
+    return { success: true, authInfo };
+  } catch (error) {
+    console.error("Error saving auth code:", error);
+    return { success: false, error };
+  }
+};
+
+const verifyAuthCode = async (user_id: number, code: string) => {
+  try {
+    const authResult = await prisma.verification.findFirst({
+      where: {
+        user_id,
+        code,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+    });
+
+    if (authResult) {
+      return { success: true, authResult };
+    } else {
+      return { success: false, message: "Invalid or expired code" };
+    }
+  } catch (error) {
+    console.error("Error verifying auth code:", error);
+    return { success: false, error };
+  }
+};
+
 export {
   queryUserById,
   queryUserByEmail,
   queryUserByPhoneNumber,
   queryUserOnly,
   createUserWithRole,
+  saveAuthCode,
+  verifyAuthCode,
 };
