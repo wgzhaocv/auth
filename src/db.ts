@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { MFAType, PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 const prisma = new PrismaClient();
 
@@ -74,11 +74,6 @@ const queryUserOnly = async (param: EmailOrPhoneNumber) => {
   return user;
 };
 
-enum MFAType {
-  GOOGLE_AUTHENTICATOR,
-  SMS_AUTHENTICATION,
-}
-
 type UserWithRole = {
   username?: string;
   password: string;
@@ -138,6 +133,11 @@ const verifyAuthCode = async (user_id: number, code: string) => {
     });
 
     if (authResult) {
+      await prisma.verification.delete({
+        where: {
+          user_id,
+        },
+      });
       return { success: true, authResult };
     } else {
       return { success: false, message: "Invalid or expired code" };
@@ -145,6 +145,25 @@ const verifyAuthCode = async (user_id: number, code: string) => {
   } catch (error) {
     console.error("Error verifying auth code:", error);
     return { success: false, error };
+  }
+};
+
+const updateUserMFA = async (user_id: number, secret: string) => {
+  try {
+    const user = await prisma.user.update({
+      where: {
+        user_id,
+      },
+      data: {
+        is_mfa_enabled: true,
+        google_authenticator_secret: secret,
+        mfa_type: MFAType.GOOGLE_AUTHENTICATOR,
+      },
+    });
+    return user;
+  } catch (error) {
+    console.log(error);
+    throw new Error("Error updating user MFA");
   }
 };
 
@@ -156,4 +175,5 @@ export {
   createUserWithRole,
   saveAuthCode,
   verifyAuthCode,
+  updateUserMFA,
 };
