@@ -45,6 +45,8 @@ router.get("/setup", async (req, res) => {
   }
 });
 
+router.get("/verify", async (req, res) => {});
+
 router.post("/setup", async (req, res) => {});
 
 router.post("/verify", async (req, res) => {});

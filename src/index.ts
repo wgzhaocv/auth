@@ -96,6 +96,12 @@ const toValidateMfa = async (req: express.Request, res: express.Response) => {
       },
     });
   } else {
+    return res.json({
+      success: {
+        message: "user confirmed, goto mfa setting",
+        mfaURL: `/mfa/setup?token=${token}`,
+      },
+    });
   }
 };
 
@@ -124,7 +130,7 @@ app.get("/login", (req, res) => {
   res.render("signin/index");
 });
 
-app.post("/login", async (req, res) => {
+app.post("/login", async (req, res, next) => {
   const { email, phonenumber, password } = req.body;
 
   try {
