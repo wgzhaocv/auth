@@ -155,7 +155,6 @@ const updateUserMFA = async (user_id: number, secret: string) => {
         user_id,
       },
       data: {
-        is_mfa_enabled: true,
         google_authenticator_secret: secret,
         mfa_type: MFAType.GOOGLE_AUTHENTICATOR,
       },

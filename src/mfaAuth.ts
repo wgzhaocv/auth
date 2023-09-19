@@ -25,8 +25,25 @@ const generateAuthenticatorSecret = async (userId: number) => {
     return { secret: secret.base32, qrCodeUrl };
   } catch (error) {
     console.log(error);
+    return { secret: "", qrCodeUrl: "" };
   }
 };
+
+router.get("/setup", async (req, res) => {
+  const { user } = req.session;
+
+  if (!user) return res.redirect("/login");
+
+  try {
+    const { qrCodeUrl } = await generateAuthenticatorSecret(user.user_id);
+
+    return res.render("mfa/setup", {
+      qrCodeUrl,
+    });
+  } catch (error) {
+    console.log(error);
+  }
+});
 
 router.post("/setup", async (req, res) => {});
 

@@ -16,9 +16,11 @@ import {
   queryUserByPhoneNumber,
   verifyAuthCode,
 } from "./db";
-import { generateAuthcode } from "./utils";
+import { generateAuthcode, generateTokenByUserId, isTokenValid } from "./utils";
 import { sendAuthCodeMail } from "./mailAuthCode";
 import Twilio from "twilio";
+import MFARouter from "./mfaAuth";
+
 const twilioClient = Twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -28,6 +30,7 @@ declare module "express-session" {
   export interface SessionData {
     user: { [key: string]: any };
     redirectTo?: string;
+    mfaVerified?: boolean;
   }
 }
 
@@ -61,13 +64,40 @@ app.use("/", (req, res, next) => {
   if (noAuthPaths.some((path) => new RegExp(`^${path}/?$`).test(req.path))) {
     return next();
   }
-  if (!req.session?.user) {
+  if (!req.session?.user || !req.session?.mfaVerified) {
     req.session.redirectTo = req.originalUrl;
     return res.redirect("/login");
   }
 
   next();
 });
+
+app.use("/mfa", MFARouter);
+
+const toValidateMfa = async (req: express.Request, res: express.Response) => {
+  const { user } = req.session;
+  if (!user)
+    return {
+      error: {
+        message: "login failed, no user found",
+      },
+    };
+  const token = generateTokenByUserId(user.user_id);
+  if (user.is_mfa_enabled) {
+    // let dest = "";
+    // if (req.session.redirectTo) {
+    //   dest = req.session.redirectTo;
+    //   delete req.session.redirectTo;
+    // }
+    return res.json({
+      success: {
+        message: "user confirmed, goto mfa setting",
+        mfaURL: `/mfa/setup?token=${token}`,
+      },
+    });
+  } else {
+  }
+};
 
 app.get("/", async (req, res) => {
   const user = req.session?.user;
@@ -103,21 +133,24 @@ app.post("/login", async (req, res) => {
 
     // console.log("the user>>>", user);
     if (result && user) {
-      req.session.user = user;
-      let dest = "";
-      if (req.session.redirectTo) {
-        dest = req.session.redirectTo;
-        delete req.session.redirectTo;
-      }
-      return res.json({
-        success: {
-          message: "login success",
-          redirectTo: dest,
-          data: {
-            user: user.username,
+      if (user.is_mfa_enabled) {
+        req.session.user = user;
+        let dest = "";
+        if (req.session.redirectTo) {
+          dest = req.session.redirectTo;
+          delete req.session.redirectTo;
+        }
+        return res.json({
+          success: {
+            message: "login success",
+            redirectTo: dest,
+            data: {
+              user: user.username,
+            },
           },
-        },
-      });
+        });
+      } else {
+      }
     }
     return res.json({
       error: {
@@ -203,8 +236,6 @@ app.get("/logout", (req, res) => {
 app.post("/sendauthcode", async (req, res) => {
   const { email, phonenumber } = req.body;
   const authCode = generateAuthcode();
-
-  // console.log("authCode>>>", authCode);
 
   try {
     if (email) {
