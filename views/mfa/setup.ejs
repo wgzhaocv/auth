@@ -3,29 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="styles.css" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="stylesheet" href="/mfaSetUp/styles.css" />
+    <script src="/mfaSetUp/script.js"></script>
     <title>MFA Setup</title>
   </head>
   <body>
-    <div class="mfa-setup">
-      <h1>MFA Setup</h1>
-      <p>Please choose your preferred MFA method:</p>
+    <div class="mainContainer">
+      <div class="box">
+        <h1>MFA Setup</h1>
+        <div class="fullLine">
+          <div class="switchContainer">
+            <label>Authenticator</label>
+            <div class="switchThumb" id="switchContainer">
+              <div class="switchSlider" id="switchSlider"></div>
+            </div>
+            <label>SMS</label>
+          </div>
+        </div>
+        <div class="authticator">
+          <h2>QR CODE</h2>
+          <p class="comment">
+            Lorem ipsum dolor sit amet, consectetur adipisicing elit. Quos
+            blanditiis tenetur unde suscipit, quam beatae rerum inventore
+            consectetur.
+          </p>
 
-      <label>
-        <input type="radio" name="mfa-method" value="authenticator" checked />
-        Authenticator App
-      </label>
-      <br />
-      <label>
-        <input type="radio" name="mfa-method" value="sms" disabled />
-        SMS
-      </label>
-      <
-
-      <button onclick="generateDataURL()">Submit</button>
-      <div id="result"></div>
+          <div class="fullLine">
+            <img
+              width="250"
+              height="250"
+              src="<%= qrCodeUrl %>"
+              alt="qr code"
+            />
+          </div>
+          <h2>Verification Code</h2>
+          <div class="fullLine">
+            <input type="text" id="authCode" />
+          </div>
+          <div class="fullLine footerAction">
+            <button type="button" id="cancelBtn">cancel</button>
+            <button type="button" id="comfirmBtn">confirm</button>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <script src="script.js"></script>
   </body>
 </html>

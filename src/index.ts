@@ -60,22 +60,33 @@ app.use((req, res, next) => {
 
 app.use("/", (req, res, next) => {
   // console.log("req>>>", req);
-  const noAuthPaths = ["/login", "/signup", "/sendauthcode", "/verifyauthcode"];
-  if (noAuthPaths.some((path) => new RegExp(`^${path}/?$`).test(req.path))) {
+  const noAuthPaths = [
+    "/login",
+    "/signup",
+    "/sendauthcode",
+    "/verifyauthcode",
+    "/mfa/setup",
+  ];
+  if (
+    noAuthPaths.some((path) => new RegExp(`^${path}(/.*)?$`).test(req.path))
+  ) {
     return next();
   }
+
+  console.log(">>>>>path can't use without login");
   if (!req.session?.user || !req.session?.mfaVerified) {
+    console.log(">>>>>unVerified user");
+
     req.session.redirectTo = req.originalUrl;
     return res.redirect("/login");
   }
+  console.log(">>>>>go to the url nomally");
 
   next();
 });
 
-app.use("/mfa", MFARouter);
-
-const toValidateMfa = async (req: express.Request, res: express.Response) => {
-  const { user } = req.session;
+const toValidateMfa = (user: any) => {
+  console.log("invoke toValidateMfa", user);
   if (!user)
     return {
       error: {
@@ -84,24 +95,19 @@ const toValidateMfa = async (req: express.Request, res: express.Response) => {
     };
   const token = generateTokenByUserId(user.user_id);
   if (user.is_mfa_enabled) {
-    // let dest = "";
-    // if (req.session.redirectTo) {
-    //   dest = req.session.redirectTo;
-    //   delete req.session.redirectTo;
-    // }
-    return res.json({
+    return {
       success: {
         message: "user confirmed, goto mfa setting",
-        mfaURL: `/mfa/setup?token=${token}`,
+        mfaURL: `/mfa/verify?token=${token}`,
       },
-    });
+    };
   } else {
-    return res.json({
+    return {
       success: {
         message: "user confirmed, goto mfa setting",
         mfaURL: `/mfa/setup?token=${token}`,
       },
-    });
+    };
   }
 };
 
@@ -137,26 +143,10 @@ app.post("/login", async (req, res, next) => {
     const user = await queryUserOnly({ email, phonenumber });
     const result = await bcrypt.compare(password, user?.password || "");
 
-    // console.log("the user>>>", user);
+    console.log("the user>>>", user, result);
     if (result && user) {
-      if (user.is_mfa_enabled) {
-        req.session.user = user;
-        let dest = "";
-        if (req.session.redirectTo) {
-          dest = req.session.redirectTo;
-          delete req.session.redirectTo;
-        }
-        return res.json({
-          success: {
-            message: "login success",
-            redirectTo: dest,
-            data: {
-              user: user.username,
-            },
-          },
-        });
-      } else {
-      }
+      req.session.user = user;
+      return res.json(toValidateMfa(user));
     }
     return res.json({
       error: {
@@ -181,7 +171,7 @@ app.get("/signup", (req, res) => {
   res.render("signup/index");
 });
 
-app.post("/signup", async (req, res) => {
+app.post("/signup", async (req, res, next) => {
   const { email, phonenumber, password } = req.body;
 
   try {
@@ -193,28 +183,8 @@ app.post("/signup", async (req, res) => {
     });
 
     req.session.user = user;
-    if (req.session.redirectTo) {
-      const dest = req.session.redirectTo;
-      delete req.session.redirectTo;
-      return res.json({
-        success: {
-          message: "signup success",
-          redirectTo: dest,
-          data: {
-            user: user.username,
-          },
-        },
-      });
-    } else {
-      return res.json({
-        success: {
-          message: "signup success",
-          data: {
-            user: user.username,
-          },
-        },
-      });
-    }
+
+    return res.json(toValidateMfa(user));
   } catch (error) {
     console.log(error);
     return res.json({ error: "somothing wrong while creating user" });
@@ -307,7 +277,7 @@ app.post("/sendauthcode", async (req, res) => {
   });
 });
 
-app.post("/verifyauthcode", async (req, res) => {
+app.post("/verifyauthcode", async (req, res, next) => {
   const { email, phonenumber, code } = req.body;
 
   try {
@@ -321,21 +291,7 @@ app.post("/verifyauthcode", async (req, res) => {
       const result = await verifyAuthCode(user.user_id, code);
       if (result.success) {
         req.session.user = user;
-        let dest = "";
-        if (req.session.redirectTo) {
-          dest = req.session.redirectTo;
-          delete req.session.redirectTo;
-        }
-
-        return res.json({
-          success: {
-            message: "auth code verified",
-            redirectTo: dest,
-            data: {
-              user: user.username,
-            },
-          },
-        });
+        return res.json(toValidateMfa(user));
       } else if (result.error) {
         return res.json({
           error: {
@@ -363,6 +319,8 @@ app.post("/verifyauthcode", async (req, res) => {
     },
   });
 });
+
+app.use("/mfa", MFARouter);
 
 const server = app.listen(3000, async () => {
   try {

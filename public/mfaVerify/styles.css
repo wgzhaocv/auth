@@ -6,19 +6,16 @@ body {
   background-color: rgb(230, 230, 230);
 }
 
-h1 {
-  margin: 0;
-}
-
 .mainContainer {
   width: 100vw;
   height: 100vh;
   display: grid;
   place-items: center;
 }
+
 .box {
-  width: 500px;
-  padding: 30px;
+  width: 300px;
+  padding: 20px;
 
   background-color: rgb(255, 255, 255);
   transition: box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;
@@ -27,94 +24,34 @@ h1 {
     rgba(0, 0, 0, 0.14) 0px 3px 4px 0px, rgba(0, 0, 0, 0.12) 0px 1px 8px 0px;
 }
 
-.mainContainer .fullLine:not(:first-child) {
+.mainContainer .line:not(:first-child) {
   margin-top: 15px;
 }
 
-.fullLine {
+.line {
   width: 100%;
-  margin-top: 20px;
-}
-
-.switchContainer {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
 }
 
-.switchThumb {
-  width: 60px;
-  height: 30px;
-  border-radius: 15px;
-  padding: 5px;
-  background-color: blueviolet;
-
-  transition: background-color 0.8s ease;
-  cursor: pointer;
-}
-.switchThumb:hover {
-  background-color: violet;
-}
-
-.switchSlider {
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  transition: translate 0.2s ease;
-  background-color: white;
-  translate: 0px;
-}
-.slided {
-  translate: 30px;
-}
-
-.switchContainer > label {
+.title {
+  font-size: 1.17rem;
   font-weight: bold;
-}
-.switchContainer > * {
-  flex-shrink: 0;
-  flex-grow: 0;
-}
-
-.switchContainer > *:not(:last-child) {
-  margin-right: 10px;
-}
-
-.authticator {
-  width: 100%;
-}
-h2 {
-  margin-block-start: 0.5em;
-  margin-block-end: 0.5em;
-}
-
-.comment {
-  color: rgb(100, 100, 100);
-  margin: 0px 0px 0.35em;
-  font-family: Roboto, Helvetica, Arial, sans-serif;
-  font-weight: 400;
-  font-size: 0.875rem;
-  line-height: 1.43;
-  letter-spacing: 0.01071em;
 }
 
 #authCode {
-  width: 200px;
-  height: 30px;
-  border: 2px solid blueviolet;
+  width: 80%;
+  height: 40px;
+  border: 2px solid slateblue;
   border-radius: 10px;
   outline: none;
   padding: 10px;
-  font-size: 1.1rem;
+  font-size: 1.17rem;
 }
 
 #authCode:focus-visible {
-  border-color: #7824c7 !important;
-}
-
-.sms {
-  display: none;
-  width: 100%;
+  border-color: blueviolet !important;
 }
 
 .footerAction {
@@ -122,7 +59,7 @@ h2 {
   align-items: center;
 }
 .footerAction button {
-  width: 120px;
+  width: 100px;
   height: 35px;
   border-radius: 10px;
   border: none;

@@ -62,17 +62,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     }
 
     if (data.success) {
-      const {
-        redirectTo,
-        data: { user },
-      } = data.success;
-      console.log("data.success", data.success);
-      sessionStorage.setItem("username", user);
-      if (redirectTo) {
-        window.location.href = redirectTo;
-      } else {
-        window.location.href = "/";
-      }
+      window.location.href = data.success.mfaURL;
     } else if (data.error) {
       console.log(data.error);
       alert(data.error.message);

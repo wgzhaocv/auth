@@ -1,13 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const switchContainer = document.getElementById("switchContainer");
-  const switchSlider = document.getElementById("switchSlider");
   const cancelBtn = document.getElementById("cancelBtn");
   const comfirmBtn = document.getElementById("comfirmBtn");
   const authCode = document.getElementById("authCode");
+  authCode.focus();
 
-  switchContainer.addEventListener("click", () => {
-    switchSlider.classList.toggle("slided");
-  });
   cancelBtn.addEventListener("click", () => {
     window.history.back();
   });
@@ -16,14 +12,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const authCodeValue = authCode.value;
     if (!authCodeValue) return;
     if (/^\d{6}$/.test(authCodeValue)) {
-      const response = await fetch("/mfa/setup" + window.location.search, {
+      const response = await fetch("/mfa/verify" + window.location.search, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           mfaCode: authCodeValue,
-          time: Date.now(),
         }),
       });
       data = await response.json();

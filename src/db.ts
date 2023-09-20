@@ -148,13 +148,18 @@ const verifyAuthCode = async (user_id: number, code: string) => {
   }
 };
 
-const updateUserMFA = async (user_id: number, secret: string) => {
+const updateUserMFA = async (
+  user_id: number,
+  secret: string,
+  mfaEnabled?: boolean
+) => {
   try {
     const user = await prisma.user.update({
       where: {
         user_id,
       },
       data: {
+        is_mfa_enabled: mfaEnabled,
         google_authenticator_secret: secret,
         mfa_type: MFAType.GOOGLE_AUTHENTICATOR,
       },
