@@ -6,24 +6,20 @@ import { isTokenValid } from "./utils";
 
 const router = express.Router();
 
-const generateAuthenticatorSecret = async (userId: number) => {
+const generateAuthenticatorSecret = async (user: any) => {
   const secret = speakeasy.generateSecret({
     length: 20,
+    otpauth_url: true,
+    name: `authApp:${user.email || user.phonenumber}`,
   });
 
   try {
-    const updatedUser = await updateUserMFA(userId, secret.base32);
+    // console.log(">>>>>secret", secret.base32);
+    const updatedUser = await updateUserMFA(user.user_id, secret.base32);
+    // console.log("<<<<<secret", updatedUser.google_authenticator_secret);
 
-    const url = speakeasy.otpauthURL({
-      secret: secret.base32,
-      label: `authApp:${updatedUser.email || updatedUser.phonenumber}`,
-      algorithm: "sha1",
-      digits: 6,
-      period: 30,
-    });
-
-    const qrCodeUrl = await qrcode.toDataURL(url);
-    return { secret: secret.base32, qrCodeUrl };
+    const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
+    return { secret: secret.base32, qrCodeUrl, updatedUser };
   } catch (error) {
     console.log(error);
     return { secret: "", qrCodeUrl: "" };
@@ -40,13 +36,21 @@ router.get("/setup", async (req, res) => {
   if (!user) return res.redirect("/login");
 
   try {
-    const { qrCodeUrl } = await generateAuthenticatorSecret(user.user_id);
+    const { qrCodeUrl, secret, updatedUser } =
+      await generateAuthenticatorSecret(user);
+    if (updatedUser) {
+      req.session.user = updatedUser;
+    } else {
+      return res.redirect("/login");
+    }
 
     return res.render("mfa/setup", {
       qrCodeUrl,
+      secret,
     });
   } catch (error) {
     console.log(error);
+    return res.redirect("/login");
   }
 });
 
@@ -73,7 +77,6 @@ const test = (secret: string) => {
     secret: secret,
     encoding: "base32",
     token: token,
-    window: 1,
   });
 
   console.log("test Verification result:", verified);
@@ -86,29 +89,25 @@ router.post("/setup", async (req, res) => {
     return res.redirect("/login");
   }
 
-  console.log("mfaCode", mfaCode);
   console.log("user", user);
   console.log("query", req.query);
 
   try {
     if (user) {
       const secret = user.google_authenticator_secret;
+
       const verified = speakeasy.totp.verify({
         secret,
         encoding: "base32",
         token: mfaCode,
-        window: 2,
       });
-
-      test(secret);
-      console.log("verified", verified, secret, mfaCode, time, Date.now());
 
       if (verified) {
         const updatedUser = await updateUserMFA(user.user_id, secret, true);
-        if (updatedUser) {
+        if (updatedUser && updatedUser.is_mfa_enabled) {
           req.session.user = updatedUser;
           req.session.mfaVerified = true;
-          let redirectTo = req.session.redirectTo || "";
+          let redirectTo = req.session.redirectTo || "/";
           return res.json({
             success: {
               message: "mfa setup and verify success",
@@ -152,7 +151,7 @@ router.post("/verify", async (req, res) => {
 
       if (verified) {
         req.session.mfaVerified = true;
-        let redirectTo = req.session.redirectTo || "";
+        let redirectTo = req.session.redirectTo || "/";
         return res.json({
           success: {
             message: "mfa verify success",

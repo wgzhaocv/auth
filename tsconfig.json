@@ -1,11 +1,13 @@
 {
   "compilerOptions": {
     "sourceMap": true,
-    "outDir": "dist",
+    "outDir": "build",
+    // "declaration": true,
     "strict": true,
-    "lib": ["esnext"],
+    // "lib": ["esnext"],
     "esModuleInterop": true,
     "module": "NodeNext",
-    "moduleResolution": "nodenext"
+    "moduleResolution": "nodenext",
+    "lib": ["dom", "es6", "es2017", "esnext"]
   }
 }

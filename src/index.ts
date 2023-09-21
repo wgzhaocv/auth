@@ -59,13 +59,14 @@ app.use((req, res, next) => {
 });
 
 app.use("/", (req, res, next) => {
-  // console.log("req>>>", req);
+  console.log("reqpath>>>", req.path);
   const noAuthPaths = [
     "/login",
     "/signup",
     "/sendauthcode",
     "/verifyauthcode",
     "/mfa/setup",
+    "/mfa/verify",
   ];
   if (
     noAuthPaths.some((path) => new RegExp(`^${path}(/.*)?$`).test(req.path))
@@ -73,7 +74,11 @@ app.use("/", (req, res, next) => {
     return next();
   }
 
-  console.log(">>>>>path can't use without login");
+  console.log(
+    ">>>>>path can't use without login",
+    req.session?.user,
+    req.session?.mfaVerified
+  );
   if (!req.session?.user || !req.session?.mfaVerified) {
     console.log(">>>>>unVerified user");
 
@@ -130,7 +135,7 @@ app.get("/", async (req, res) => {
 });
 
 app.get("/login", (req, res) => {
-  if (req.session?.user) {
+  if (req.session?.user && req.session?.mfaVerified) {
     return res.redirect("/");
   }
   res.render("signin/index");
@@ -165,7 +170,7 @@ app.post("/login", async (req, res, next) => {
 
 app.get("/signup", (req, res) => {
   console.log(req.session?.user);
-  if (req.session?.user) {
+  if (req.session?.user && req.session?.mfaVerified) {
     return res.redirect("/");
   }
   res.render("signup/index");

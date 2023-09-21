@@ -123,9 +123,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
       if (this.checked) {
         document.getElementById("label-text").innerText = "login with authcode";
         passwordlabel.innerText = "authcode";
+        sendcodeBtn.style.display = "block";
       } else {
         document.getElementById("label-text").innerText = "login with password";
         passwordlabel.innerText = "password";
+        sendcodeBtn.style.display = "none";
       }
     });
 });

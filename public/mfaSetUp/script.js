@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
       data = await response.json();
       if (data.success) {
         sessionStorage.setItem("username", data.success.data.user);
+        alert("MFA setup success", data.success.redirectTo);
         window.location.href = data.success.redirectTo ?? "/";
       } else {
         alert(data.error.message);
