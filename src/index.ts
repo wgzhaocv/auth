@@ -1,12 +1,10 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import express from "express";
 import path from "path";
-// import jwt from "jsonwebtoken";
 import session from "express-session";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 const app = express();
-// import seedingData from "../prisma/seed";
 import {
   queryUserById,
   queryUserOnly,
@@ -327,12 +325,7 @@ app.post("/verifyauthcode", async (req, res, next) => {
 
 app.use("/mfa", MFARouter);
 
-const server = app.listen(3000, async () => {
-  try {
-    // seedingData();
-  } catch (error) {
-    console.log(error);
-  }
+const server = app.listen(3000, () => {
   console.log(`
 🚀 Server ready at: http://localhost:3000
 ⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
