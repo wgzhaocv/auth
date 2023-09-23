@@ -1,9 +1,16 @@
 {
   "functions": {
-    "api/index.js": {
-      "runtime": "nodejs@18",
-      "src": "dist/src/index.js"
+    "src/index.js": {
+      "runtime": "nodejs@18"
     }
   },
-  "routes": [{ "src": "/(.*)", "dest": "/api/index.js" }]
+  "routes": [
+    { "src": "/login", "dest": "/src/index.js" },
+    { "src": "/signup", "dest": "/src/index.js" },
+    { "src": "/sendauthcode", "dest": "/src/index.js" },
+    { "src": "/verifyauthcode", "dest": "/src/index.js" },
+    { "src": "/mfa/setup", "dest": "/src/index.js" },
+    { "src": "/mfa/verify", "dest": "/src/index.js" },
+    { "src": "/(.*)", "dest": "/src/index.js" }
+  ]
 }
