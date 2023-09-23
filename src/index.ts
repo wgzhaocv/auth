@@ -72,18 +72,10 @@ app.use("/", (req, res, next) => {
     return next();
   }
 
-  console.log(
-    ">>>>>path can't use without login",
-    req.session?.user,
-    req.session?.mfaVerified
-  );
   if (!req.session?.user || !req.session?.mfaVerified) {
-    console.log(">>>>>unVerified user");
-
     req.session.redirectTo = req.originalUrl;
     return res.redirect("/login");
   }
-  console.log(">>>>>go to the url nomally");
 
   next();
 });
@@ -325,8 +317,12 @@ app.post("/verifyauthcode", async (req, res, next) => {
 
 app.use("/mfa", MFARouter);
 
-const server = app.listen(3000, () => {
-  console.log(`
-🚀 Server ready at: http://localhost:3000
-⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
-});
+if (process.env.DEPLOY_ENV === "development") {
+  const server = app.listen(3000, () => {
+    console.log(`
+  🚀 Server ready at: http://localhost:3000
+  ⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
+  });
+}
+
+export default app;

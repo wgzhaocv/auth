@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/index.js": {
+      "runtime": "nodejs@18",
+      "src": "dist/src/index.js"
+    }
+  },
+  "routes": [{ "src": "/(.*)", "dest": "/api/index.js" }]
+}
