@@ -47,7 +47,7 @@ app.use(
   })
 );
 
-const publicPath = path.resolve(".", "./public");
+const publicPath = path.resolve("public");
 
 app.use(express.static(publicPath));
 

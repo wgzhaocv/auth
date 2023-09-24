@@ -4,9 +4,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "nodemon --exec ts-node src/index.ts",
-    "tsc": "tsc",
     "start": "node dist/src/index.js",
-    "build": "tsc && cp -r public/ dist/src/ && cp -r views/ dist/src/"
+    "build": "tsc"
   },
   "dependencies": {
     "@prisma/client": "5.2.0",
