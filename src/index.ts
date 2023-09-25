@@ -317,12 +317,9 @@ app.post("/verifyauthcode", async (req, res, next) => {
 
 app.use("/mfa", MFARouter);
 
-if (process.env.DEPLOY_ENV === "development") {
-  const server = app.listen(3000, () => {
-    console.log(`
-  🚀 Server ready at: http://localhost:3000
-  ⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
-  });
-}
+const server = app.listen(3000, () => {
+  console.log(`
+🚀 Server ready at: http://localhost:3000
+⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
+});
 
-export default app;
