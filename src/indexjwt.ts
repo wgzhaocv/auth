@@ -13,10 +13,12 @@ import {
   queryUserByPhoneNumber,
   verifyAuthCode,
 } from "./db";
-import { generateAuthcode, generateTokenByUserId } from "./utils";
+import { generateAuthcode, generateTokenByUserId, noAuthPaths } from "./utils";
 import { sendAuthCodeMail } from "./mailAuthCode";
 import Twilio from "twilio";
-import MFARouter from "./mfaAuth";
+import MFARouter from "./mfaAuthJwt";
+import { generateTempToken, getToken, middlewareJwt, verifyToken } from "./jwt";
+import { JwtPayload } from "jsonwebtoken";
 
 const twilioClient = Twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -32,21 +34,9 @@ declare module "express-session" {
 }
 
 app.use(express.json());
+app.use(middlewareJwt);
 
 app.set("view engine", "ejs");
-console.log(crypto.randomBytes(20).toString("hex"));
-console.log(crypto.randomBytes(20).toString("hex"));
-console.log("<<<<<<");
-app.use(
-  session({
-    secret:
-      process.env.SESSION_SECRET || crypto.randomBytes(20).toString("hex"),
-    resave: false,
-    rolling: true,
-    saveUninitialized: false,
-    cookie: { secure: false, maxAge: 5 * 60 * 1000 }, // 在生产环境中应设置为 true，以确保cookie只通过HTTPS发送
-  })
-);
 
 const publicPath = path.resolve("public");
 
@@ -57,28 +47,20 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/", (req, res, next) => {
-  console.log("reqpath>>>", req.path);
-  const noAuthPaths = [
-    "/login",
-    "/signup",
-    "/sendauthcode",
-    "/verifyauthcode",
-    "/mfa/setup",
-    "/mfa/verify",
-  ];
+app.use("/", async (req, res, next) => {
   if (
     noAuthPaths.some((path) => new RegExp(`^${path}(/.*)?$`).test(req.path))
   ) {
     return next();
   }
 
-  if (!req.session?.user || !req.session?.mfaVerified) {
-    req.session.redirectTo = req.originalUrl;
+  try {
+    verifyToken(req);
+    next();
+  } catch (error) {
+    console.error(error);
     return res.redirect("/login");
   }
-
-  next();
 });
 
 const toValidateMfa = (user: any) => {
@@ -90,11 +72,16 @@ const toValidateMfa = (user: any) => {
       },
     };
   const token = generateTokenByUserId(user.user_id);
+  const tempToken = generateTempToken({
+    user_id: user.user_id,
+    is_mfa_enabled: user.is_mfa_enabled,
+  });
   if (user.is_mfa_enabled) {
     return {
       success: {
         message: "user confirmed, goto mfa setting",
         mfaURL: `/mfa/verify?token=${token}`,
+        tempToken,
       },
     };
   } else {
@@ -102,34 +89,36 @@ const toValidateMfa = (user: any) => {
       success: {
         message: "user confirmed, goto mfa setting",
         mfaURL: `/mfa/setup?token=${token}`,
+        tempToken,
       },
     };
   }
 };
 
 app.get("/", async (req, res) => {
-  const user = req.session?.user;
-
-  console.log(user);
-
-  if (user) {
+  try {
+    const user = verifyToken(req) as JwtPayload;
     const allUserInfo = await queryUserById(user.user_id);
     console.log(allUserInfo);
     return res.render("home", {
-      user: user.username,
+      user: allUserInfo?.username ?? "",
       role: JSON.stringify(allUserInfo?.User_Roles),
       permission: "",
     });
+  } catch (error) {
+    console.error(error);
+    return res.redirect("/login");
   }
-
-  return res.redirect("/login");
 });
 
-app.get("/login", (req, res) => {
-  if (req.session?.user && req.session?.mfaVerified) {
+app.get("/login", async (req, res) => {
+  try {
+    verifyToken(req);
     return res.redirect("/");
+  } catch (error) {
+    console.error(error);
+    return res.render("signin/index");
   }
-  res.render("signin/index");
 });
 
 app.post("/login", async (req, res, next) => {
@@ -141,14 +130,10 @@ app.post("/login", async (req, res, next) => {
 
     console.log("the user>>>", user, result);
     if (result && user) {
-      req.session.user = user;
       return res.json(toValidateMfa(user));
+    } else {
+      throw new Error("login failed");
     }
-    return res.json({
-      error: {
-        message: "login failed, no user found",
-      },
-    });
   } catch (error) {
     console.log(error);
     return res.json({
@@ -161,13 +146,16 @@ app.post("/login", async (req, res, next) => {
 
 app.get("/signup", (req, res) => {
   console.log(req.session?.user);
-  if (req.session?.user && req.session?.mfaVerified) {
+  try {
+    verifyToken(req);
     return res.redirect("/");
+  } catch (error) {
+    console.error(error);
+    return res.render("signup/index");
   }
-  res.render("signup/index");
 });
 
-app.post("/signup", async (req, res, next) => {
+app.post("/signup", async (req, res) => {
   const { email, phonenumber, password } = req.body;
 
   try {
@@ -177,8 +165,6 @@ app.post("/signup", async (req, res, next) => {
       email,
       phonenumber,
     });
-
-    req.session.user = user;
 
     return res.json(toValidateMfa(user));
   } catch (error) {
@@ -218,15 +204,14 @@ app.post("/sendauthcode", async (req, res) => {
       if (user) {
         const savedAuthInfo = await saveAuthCode(user.user_id, authCode);
         if (savedAuthInfo.success) {
+          const tempToken = generateTempToken({
+            user_id: user.user_id,
+            is_mfa_enabled: user.is_mfa_enabled,
+          });
           return res.json({
             success: {
               message: "auth code sent",
-            },
-          });
-        } else {
-          return res.json({
-            error: {
-              message: "some error occured",
+              tempToken,
             },
           });
         }
@@ -243,20 +228,20 @@ app.post("/sendauthcode", async (req, res) => {
       if (user) {
         const savedAuthInfo = await saveAuthCode(user.user_id, authCode);
         if (savedAuthInfo.success) {
+          const tempToken = generateTempToken({
+            user_id: user.user_id,
+            is_mfa_enabled: user.is_mfa_enabled,
+          });
           return res.json({
             success: {
               message: "auth code sent",
-            },
-          });
-        } else {
-          return res.json({
-            error: {
-              message: "some error occured",
+              tempToken,
             },
           });
         }
       }
     }
+    throw new Error("some error occured");
   } catch (error) {
     console.log(error);
     return res.json({
@@ -265,15 +250,9 @@ app.post("/sendauthcode", async (req, res) => {
       },
     });
   }
-
-  return res.json({
-    error: {
-      message: "no email or phonenumber provided",
-    },
-  });
 });
 
-app.post("/verifyauthcode", async (req, res, next) => {
+app.post("/verifyauthcode", async (req, res) => {
   const { email, phonenumber, code } = req.body;
 
   try {
@@ -286,22 +265,10 @@ app.post("/verifyauthcode", async (req, res, next) => {
     if (user) {
       const result = await verifyAuthCode(user.user_id, code);
       if (result.success) {
-        req.session.user = user;
         return res.json(toValidateMfa(user));
-      } else if (result.error) {
-        return res.json({
-          error: {
-            message: "auth code not verified",
-          },
-        });
       }
-    } else {
-      return res.json({
-        error: {
-          message: "no user found",
-        },
-      });
     }
+    throw new Error("some error occured");
   } catch (error) {
     return res.json({
       error: {
@@ -309,11 +276,6 @@ app.post("/verifyauthcode", async (req, res, next) => {
       },
     });
   }
-  return res.json({
-    error: {
-      message: "some error occured",
-    },
-  });
 });
 
 app.use("/mfa", MFARouter);

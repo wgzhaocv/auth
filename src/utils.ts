@@ -30,3 +30,12 @@ export function isTokenValid(token: string) {
   if (tokenData && tokenData.expiryTime > Date.now()) return true;
   return false;
 }
+
+export const noAuthPaths = [
+  "/login",
+  "/signup",
+  "/sendauthcode",
+  "/verifyauthcode",
+  "/mfa/setup",
+  "/mfa/verify",
+];
