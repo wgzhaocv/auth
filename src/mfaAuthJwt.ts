@@ -3,7 +3,12 @@ import speakeasy from "speakeasy";
 import qrcode from "qrcode";
 import { queryUserById, updateUserMFA } from "./db";
 import { isTokenValid } from "./utils";
-import { verifyTempToken, verifyToken } from "./jwt";
+import {
+  generateTokenAndRefreshToken,
+  verifyTempToken,
+  verifyToken,
+} from "./jwt";
+import { JwtPayload } from "jsonwebtoken";
 
 const router = express.Router();
 
@@ -29,7 +34,7 @@ const generateAuthenticatorSecret = async (userPart: any) => {
 router.get("/setup", async (req, res) => {
   const { token, redirectTo } = req.query as {
     token: string;
-    redirectTo: string;
+    redirectTo?: string;
   };
   if (typeof token !== "string" || !isTokenValid(token)) {
     return res.redirect("/login");
@@ -47,11 +52,6 @@ router.get("/setup", async (req, res) => {
 
     const { qrCodeUrl, secret, updatedUser } =
       await generateAuthenticatorSecret(user);
-    if (updatedUser) {
-      req.session.user = updatedUser;
-    } else {
-      return res.redirect("/login");
-    }
 
     return res.render("mfa/setup", {
       qrCodeUrl,
@@ -64,31 +64,51 @@ router.get("/setup", async (req, res) => {
 });
 
 router.get("/verify", async (req, res) => {
-  const { user } = req.session;
-
-  if (!user) return res.redirect("/login");
-
-  try {
-    return res.render("mfa/verify");
-  } catch (error) {
-    console.log(error);
-  }
-});
-
-router.post("/setup", async (req, res) => {
-  const { mfaCode, time } = req.body;
-  const { user } = req.session;
-  const { token } = req.query;
+  const { token, redirectTo } = req.query as {
+    token: string;
+    redirectTo?: string;
+  };
   if (typeof token !== "string" || !isTokenValid(token)) {
     return res.redirect("/login");
   }
 
-  console.log("user", user);
-  console.log("query", req.query);
+  try {
+    verifyToken(req);
+    return res.redirect(redirectTo ?? "/");
+  } catch (error) {
+    console.log(error);
+  }
 
   try {
-    if (user) {
-      const secret = user.google_authenticator_secret;
+    const user = verifyTempToken(req);
+    console.log(">>>user", user);
+    if (!user) return res.redirect("/login");
+    return res.render("mfa/verify");
+  } catch (error) {
+    console.log(error);
+    return res.json({
+      error: { message: "error occured while setting up mfa" },
+    });
+  }
+});
+
+router.post("/setup", async (req, res) => {
+  const { mfaCode } = req.body;
+  const { token, redirectTo: dest } = req.query as {
+    token: string;
+    redirectTo?: string;
+  };
+  try {
+    if (typeof token !== "string" || !isTokenValid(token)) {
+      throw new Error("error occured while setting up mfa");
+    }
+
+    const user = verifyTempToken(req) as JwtPayload;
+
+    if (!user) throw new Error("error occured while setting up mfa");
+    const allUserInfo = await queryUserById(user.user_id);
+    if (allUserInfo) {
+      const secret = allUserInfo.google_authenticator_secret!;
 
       const verified = speakeasy.totp.verify({
         secret,
@@ -97,29 +117,31 @@ router.post("/setup", async (req, res) => {
       });
 
       if (verified) {
-        const updatedUser = await updateUserMFA(user.user_id, secret, true);
+        const updatedUser = await updateUserMFA(
+          allUserInfo.user_id,
+          secret,
+          true
+        );
         if (updatedUser && updatedUser.is_mfa_enabled) {
-          req.session.user = updatedUser;
-          req.session.mfaVerified = true;
-          let redirectTo = req.session.redirectTo || "/";
+          const tokens = generateTokenAndRefreshToken({
+            user_id: updatedUser.user_id,
+            is_mfa_enabled: updatedUser.is_mfa_enabled,
+          });
+          let redirectTo = dest || "/";
           return res.json({
             success: {
               message: "mfa setup and verify success",
               redirectTo,
+              ...tokens,
               data: {
                 user: updatedUser.username,
               },
             },
           });
         }
-      } else {
-        return res.json({
-          error: {
-            message: "error occured while setting up mfa",
-          },
-        });
       }
     }
+    throw new Error("error occured while setting up mfa");
   } catch (error) {
     console.log(error);
   }
@@ -132,11 +154,15 @@ router.post("/setup", async (req, res) => {
 
 router.post("/verify", async (req, res) => {
   const { mfaCode } = req.body;
-  const { user } = req.session;
 
   try {
-    if (user) {
-      const secret = user.google_authenticator_secret;
+    const user = verifyTempToken(req) as JwtPayload;
+
+    if (!user) throw new Error("error occured while setting up mfa");
+    const allUserInfo = await queryUserById(user.user_id);
+
+    if (allUserInfo) {
+      const secret = allUserInfo.google_authenticator_secret!;
       const verified = speakeasy.totp.verify({
         secret,
         encoding: "base32",
@@ -144,12 +170,14 @@ router.post("/verify", async (req, res) => {
       });
 
       if (verified) {
-        req.session.mfaVerified = true;
-        let redirectTo = req.session.redirectTo || "/";
+        const tokens = generateTokenAndRefreshToken({
+          user_id: allUserInfo.user_id,
+          is_mfa_enabled: allUserInfo.is_mfa_enabled,
+        });
         return res.json({
           success: {
             message: "mfa verify success",
-            redirectTo,
+            ...tokens,
             data: {
               user: user.username,
             },

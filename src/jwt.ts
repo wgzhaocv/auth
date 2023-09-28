@@ -12,9 +12,17 @@ export type UserPart = {
   is_mfa_enabled?: boolean;
 };
 
-export const getToken = (req: express.Request) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+export const getToken = (req: express.Request, type?: 0 | 1 | 2) => {
+  let token = "";
+  if (type === 0) {
+    token = req.cookies.token;
+  } else if (type === 1) {
+    token = req.cookies.tempToken;
+  } else if (type === 2) {
+    token = req.cookies.refreshToken;
+  }
+
+  console.log(">>>token", token);
   if (!token) throw new Error("No token");
   return token;
 };
@@ -61,7 +69,7 @@ export const verifyToken = (req: express.Request) => {
 
 export const verifyTempToken = (req: express.Request) => {
   try {
-    const token = getToken(req);
+    const token = getToken(req, 1);
     const decoded = jwt.verify(token, JWT_TEMP_SECRET);
     return decoded;
   } catch (error) {

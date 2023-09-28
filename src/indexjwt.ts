@@ -3,6 +3,8 @@ import path from "path";
 import session from "express-session";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
+import { expressjwt } from "express-jwt";
+
 const app = express();
 import {
   queryUserById,
@@ -19,6 +21,7 @@ import Twilio from "twilio";
 import MFARouter from "./mfaAuthJwt";
 import { generateTempToken, getToken, middlewareJwt, verifyToken } from "./jwt";
 import { JwtPayload } from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 
 const twilioClient = Twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -33,14 +36,30 @@ declare module "express-session" {
   }
 }
 
+app.use(cookieParser());
 app.use(express.json());
+const publicPath = path.resolve("public");
+app.use(express.static(publicPath));
+
 app.use(middlewareJwt);
 
+app.use(
+  (
+    err: Error,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    if (err.name === "UnauthorizedError") {
+      // Check if error name is 'UnauthorizedError'
+      res.redirect("/login");
+    } else {
+      next(err);
+    }
+  }
+);
+
 app.set("view engine", "ejs");
-
-const publicPath = path.resolve("public");
-
-app.use(express.static(publicPath));
 
 app.use((req, res, next) => {
   res.set("Last-Modified", new Date().toUTCString());
@@ -55,7 +74,9 @@ app.use("/", async (req, res, next) => {
   }
 
   try {
+    console.log("check token middleware");
     verifyToken(req);
+    console.log(req);
     next();
   } catch (error) {
     console.error(error);
@@ -130,7 +151,12 @@ app.post("/login", async (req, res, next) => {
 
     console.log("the user>>>", user, result);
     if (result && user) {
-      return res.json(toValidateMfa(user));
+      const result = toValidateMfa(user);
+      res.cookie("tempToken", result.success?.tempToken!, {
+        httpOnly: true,
+        secure: true,
+      });
+      return res.json(result);
     } else {
       throw new Error("login failed");
     }
@@ -280,12 +306,8 @@ app.post("/verifyauthcode", async (req, res) => {
 
 app.use("/mfa", MFARouter);
 
-if (process.env.DEPLOY_ENV === "development") {
-  const server = app.listen(3000, () => {
-    console.log(`
-  🚀 Server ready at: http://localhost:3000
-  ⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
-  });
-}
-
-export default app;
+const server = app.listen(3000, () => {
+  console.log(`
+🚀 Server ready at: http://localhost:3000
+⭐️ See sample requests: http://pris.ly/e/ts/rest-express#3-using-the-rest-api`);
+});

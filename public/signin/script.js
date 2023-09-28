@@ -61,7 +61,9 @@ document.addEventListener("DOMContentLoaded", (event) => {
       data = await response.json();
     }
 
+    console.log(data);
     if (data.success) {
+      localStorage.setItem("tempToken", data.success.tempToken);
       window.location.href = data.success.mfaURL;
     } else if (data.error) {
       console.log(data.error);
